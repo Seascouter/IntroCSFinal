@@ -40,7 +40,7 @@ def command_parse(msg):
     return msg
 
 def alarm_handler(signum, frame):
-    raise Exception('XYZZYX')
+    raise TimeOutException
 
 def reset_time(time):
     signal.alarm(time)
@@ -149,7 +149,7 @@ while True:
                 time.sleep(1)
             else:
                 reset_time(10)
-        except Exception as ex:
+        except TimeOutException as ex:
             print(ex)
             reset_time(0)
             print('start game')
