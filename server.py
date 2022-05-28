@@ -99,6 +99,11 @@ server_socket.listen()
 sockets_list = [server_socket]
 clients = {}
 
+try:
+    print(f"Server IP Address: {print(socket.gethostbyname(socket.gethostname()))}")
+except:
+    pass
+
 
 
 print(f'Server open on {PORT}')
