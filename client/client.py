@@ -12,12 +12,37 @@ loggedIn = False
 
 waiting = False
 
+sent = False
+
+currentPlayers = ''
+currentHand = ''
+currentMax = 0
+
 
 def command_parse(msg):
     msg = msg.split("|")
     for i in range(len(msg)):
         msg[i] = msg[i].split(",")
     return msg
+
+def multiSplit(string, mode):
+    outputStr = ''
+    if mode == 't' or mode == 'h':
+        temp = string.split(';')
+        for x in range(len(temp)):
+            outputStr += f'{temp[x]} '
+    elif mode == 'p':
+        temp = string.split(';')
+        for x in temp:
+            x = x.split('~')
+            if x[1] == 'i':
+                #\033[32m
+                outputStr += f'\033[32m{x[0]} [{x[2]}]\033[0m '
+            elif x[1] == 'o':
+                #\033[31m
+                outputStr += f'\033[31m{x[0]}\033[0m '
+    return outputStr
+
 
 
 
@@ -98,7 +123,71 @@ while True:
                     else:
                         waiting = True
 
-            print(f'{message[0][2]}')
+                    print(f'{message[0][2]}')
+            elif message[0][0] == 'yt':
+                print("\033c", end="")
+                cmdBack = ''
+                currentMax = int(message[0][1])
+                currentTable = multiSplit(message[0][2], 't')
+                currentHand = multiSplit(message[0][3], 'h')
+                currentPlayers = multiSplit(message[0][4], 'p')
+                sent = False
+                while not sent:
+                    print(f'Players: {currentPlayers}')
+                    print(f'Table: {currentTable}')
+                    print(f'{currentHand}')
+                    print('-'*30)
+                    print('[r] Raise')
+                    print('[c] Call')
+                    print('[f] Fold')
+                    choice = input(' > ')
+                    if choice == 'r':
+                        try:
+                            raiseAmt = int(input(f'Raise to how much (min {currentMax+1})? '))
+                        except:
+                            continue
+                        if raiseAmt <= currentMax:
+                            print("\033c", end="")
+                            continue
+                        else:
+                            cmdBack += f'rs,{raiseAmt}'
+                            cmdBack = cmdBack.encode()
+                            cmdBack = {'header': f"{len(cmdBack):<{HEADER_LENGTH}}".encode(), 'data': cmdBack}
+                            cmdBack = cmdBack['header'] + cmdBack['data']
+                            client_socket.send(cmdBack)
+                            sent = True
+                    elif choice == 'c':
+                        cmdBack += f'cl,{currentMax}'
+                        cmdBack = cmdBack.encode()
+                        cmdBack = {'header': f"{len(cmdBack):<{HEADER_LENGTH}}".encode(), 'data': cmdBack}
+                        cmdBack = cmdBack['header'] + cmdBack['data']
+                        client_socket.send(cmdBack)
+                        sent = True
+                    elif choice == 'f':
+                        cmdBack += 'fd'
+                        cmdBack = cmdBack.encode()
+                        cmdBack = {'header': f"{len(cmdBack):<{HEADER_LENGTH}}".encode(), 'data': cmdBack}
+                        cmdBack = cmdBack['header'] + cmdBack['data']
+                        client_socket.send(cmdBack)
+                        sent = True
+                    else:
+                        print("\033c", end="")
+                        print('Input valid option')
+                        print(' ')
+
+            elif message[0][0] == 'wn':
+                print("\033c", end="")
+                print('-'*30)
+                print('Game results:')
+                print(f'You won {message[0][1]}')
+                print(f'Your new balance is {message[0][2]}')
+                print('-'*30)
+                time.sleep(3)
+                waiting = False
+
+                            
+
+
 
     except IOError as e:
         if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:

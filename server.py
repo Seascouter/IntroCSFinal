@@ -3,21 +3,18 @@ import socket
 import select
 import accounts.accounts as accounts
 import main
-import signal
 import time
 
 # VARIABLES
 HEADER_LENGTH = 10
 PORT = 44421
 
+gameNow = False
+
 wait_list = []
 
-timedout = False
-
-# CLASSES
-class TimeOutException(Exception):
-    pass
-
+cpi = 0
+gameRound = 0
 
 # FUNCTIONS
 def receive_message(cs):
@@ -39,11 +36,31 @@ def command_parse(msg):
         msg[i] = msg[i].split(",")
     return msg
 
-def alarm_handler(signum, frame):
-    raise TimeOutException
+def adjust(userHand):
+    output = ''
+    for card in userHand:
+        if card[1] == 'H':
+            output += f'{card[0]}♥'
+        elif card[1] == 'D':
+            output += f'{card[0]}♦'
+        elif card[1] == 'S':
+            output += f'{card[0]}♠'
+        elif card[1] == 'C':
+            output += f'{card[0]}♣'
+    return output
 
-def reset_time(time):
-    signal.alarm(time)
+def getPlayerStatus():
+    outputStr = ''
+    for p in main.order:
+        if main.stillIn[p] is True:
+            outputStr += f'{clients[p]["data"].decode()}~i~{main.bets[p]};'
+        else:
+            outputStr += f'{clients[p]["data"].decode()}~o;'
+    return outputStr[:-1]
+
+
+
+
 
 
 
@@ -70,7 +87,6 @@ un = ''
 pw = ''
 
 while True:
-
 
     currPLen = len(main.players)
 
@@ -127,41 +143,120 @@ while True:
                     if su == False:
                         print("Error setting users!")
                 elif cmd[0][0] == 'jn':
-                    main.players[notified] = 'joining'
-                    for player in clients:
-                        jnmsg = f'wt,{user["data"].decode()},Waiting for players ({len(main.players)}/3)'.encode()
-                        jnmsg = {'header':f"{len(jnmsg):<{HEADER_LENGTH}}".encode(), 'data':jnmsg}
-                        jnmsg = jnmsg['header']+jnmsg['data']
-                        player.send(jnmsg)
-                    if len(main.players) == 3:
-                        reset_time(10)
-
+                    if not gameNow:
+                        if len(main.players) < 6:
+                            main.players[notified] = 'joining'
+                            for player in main.players:
+                                jnmsg = f'wt,{user["data"].decode()},Waiting for players ({len(main.players)}/3)'.encode()
+                                jnmsg = {'header':f"{len(jnmsg):<{HEADER_LENGTH}}".encode(), 'data':jnmsg}
+                                jnmsg = jnmsg['header']+jnmsg['data']
+                                player.send(jnmsg)
+                            print(f"\033[32m{user['data'].decode()} joined\033[0m")
+                            if len(main.players) == 3:
+                                print('3')
+                        elif len(main.players) >= 6:
+                            fmsg = f'wt,{user["data"].decode()},Game full...adding to wait queue'.encode()
+                            fmsg = {'header': f"{len(fmsg):<{HEADER_LENGTH}}".encode(), 'data': fmsg}
+                            fmsg = fmsg['header'] + fmsg['data']
+                            notified.send(fmsg)
+                            wait_list.append(notified)
+                            print(len(wait_list), 'nogame')
+                    else:
+                        gmsg = f'wt,{user["data"].decode()},Game already started...adding to wait queue'.encode()
+                        gmsg = {'header': f"{len(gmsg):<{HEADER_LENGTH}}".encode(), 'data': gmsg}
+                        gmsg = gmsg['header'] + gmsg['data']
+                        notified.send(gmsg)
+                        wait_list.append(notified)
+                        print(len(wait_list), 'game')
+                elif cmd[0][0] == 'rs':
+                    if int(cmd[0][1]) <= accounts.users[clients[notified]['data'].decode()][0]:
+                        main.bets[notified] = int(cmd[0][1])
+                        print('rs')
+                    else:
+                        main.bets[notified] = accounts.users[clients[notified]['data'].decode()][0]
+                elif cmd[0][0] == 'cl':
+                    main.bets[notified] = main.currentHigh
+                    print('cl')
+                elif cmd[0][0] == 'fd':
+                    main.stillIn[notified] = False
+                    print('fd')
                 else:
                     print(f"{user['data'].decode()} > {message['data']}")
-
-    signal.signal(signal.SIGALRM, alarm_handler)
-    if len(main.players) >= 3:
-        print('herehere')
-        try:
-            print(currPLen, len(main.players))
-            if currPLen == len(main.players):
-                print('wait')
-                time.sleep(1)
-            else:
-                reset_time(10)
-        except TimeOutException as ex:
-            print(ex)
-            reset_time(0)
-            print('start game')
-            main.init_players()
-            print(len(main.players))
-
-
-
 
         for exception in exception_s:
             sockets_list.remove(exception)
             del clients[exception]
+
+        prev = 0
+        for bets in main.bets:
+            if main.bets[bets] > prev:
+                prev = main.bets[bets]
+        main.currentHigh = prev
+
+        if not gameNow:
+            if len(main.players) >= 3:
+                gameNow = True
+                main.create_deck(main.deck)
+                main.init_players()
+                main.deal_hands()
+                print('just dealt hands feeling good')
+                for xyz in main.players:
+                    print(main.players[xyz].hand)
+                if main.stillIn[main.order[cpi]] is True:
+                    yourturn = f'yt,{main.currentHigh},{adjust(main.currentTable)},{adjust(main.players[main.order[cpi]].hand)},{getPlayerStatus()}'.encode()
+                    yourturn = {'header': f"{len(yourturn):<{HEADER_LENGTH}}".encode(), 'data': yourturn}
+                    yourturn = yourturn['header'] + yourturn['data']
+                    main.order[cpi].send(yourturn)
+                cpi+=1
+
+        else:
+            amtIn = main.get_amt_in()
+            if amtIn == 1:
+                for p in main.stillIn:
+                    if main.stillIn[p] == True:
+                        totalB = main.get_total_bets()
+                        print(clients[p]['data'])
+                        print(accounts.users)
+                        accounts.users[clients[p]['data'].decode()][0] += totalB
+                        winmsg = f'wn,{totalB},{accounts.users[clients[p]["data"].decode()][0]}'.encode()
+                        winmsg = {'header': f"{len(winmsg):<{HEADER_LENGTH}}".encode(), 'data': winmsg}
+                        winmsg = winmsg['header'] + winmsg['data']
+                        p.send(winmsg)
+                        su = accounts.set_users()
+                        if su == False:
+                            print("Error setting users!")
+            elif amtIn == 2:
+                main.score_all_players()
+                for p in main.players:
+                    print(main.players[p].highScore)
+            gameRound += 1
+            print(gameRound)
+            if cpi >= len(main.order):
+                cpi = 0
+
+            if gameRound == 3:
+                main.deal_table(3)
+            elif gameRound == 6:
+                main.deal_table(1)
+            elif gameRound == 9:
+                main.deal_table(1)
+            if main.stillIn[main.order[cpi]] is True:
+                print(main.players[main.order[cpi]].hand)
+                yourturn = f'yt,{main.currentHigh},{adjust(main.currentTable)},{adjust(main.players[main.order[cpi]].hand)},{getPlayerStatus()}'.encode()
+                yourturn = {'header': f"{len(yourturn):<{HEADER_LENGTH}}".encode(), 'data': yourturn}
+                yourturn = yourturn['header'] + yourturn['data']
+                main.order[cpi].send(yourturn)
+            cpi += 1
+
+
+
+
+
+
+
+
+
+
 
 
 
