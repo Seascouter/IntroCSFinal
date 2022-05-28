@@ -1,11 +1,13 @@
 users = {}
 unpw = {}
 
+# a new user is created
 def add_user(un, pw):
-    line = f"{un},{pw}"
+    line = f"{un},{pw},3000,3000"
     with open("accounts/accounts.csv", 'a') as f:
         f.write(line)
 
+# gets all users from the file and adds them to dictionaries
 def get_users():
     with open("accounts/accounts.csv", 'r') as f:
         for line in f:
@@ -14,6 +16,7 @@ def get_users():
             users[line[0]] = [int(line[2]), int(line[3]), line[1]]
             unpw[line[0]] = line[1]
 
+# sets users file to new data in dictionaries
 def set_users():
     with open('accounts/accounts.csv', 'w') as f:
         for user in users:
@@ -22,6 +25,7 @@ def set_users():
             #print(line)
             f.write(line)
 
+# adjusts the amounts of wallet and bank from arguments
 def adjust_amounts(user, new_wallet, new_bank):
     old_wallet = users[user][0]
     old_bank = users[user][1]

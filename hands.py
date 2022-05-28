@@ -1,6 +1,7 @@
 
 
 class Player:
+    # values
     hand = []
     rankHand = []
     pairs = []
@@ -20,6 +21,7 @@ class Player:
     highScore = ''
     topScore = 0
 
+    # checks for royal straight flush
     def getRSF(self):
         hasAce = False
         for i in range(len(self.hand)):
@@ -29,15 +31,18 @@ class Player:
         if hasAce and self.points['sf']:
             self.points['rsf'] = True
 
+    # checks on straight flush
     def getStraightFlush(self):
         if self.points['s'] == True and self.points['f'] == True:
             self.points['sf'] = True
 
+    # checks for 4 of a kind
     def getFourKind(self):
         for i in self.cardVals:
             if self.cardVals[i] >= 4:
                 self.points['four'] = True
 
+    # checks for full house
     def getFullHouse(self):
         card3 = 0
         if self.points['three']:
@@ -49,6 +54,7 @@ class Player:
                     if self.pairs[i][0][0] != card3:
                         self.points['fh'] = True
 
+    # checks for flush
     def getFlush(self):
         suits = {
             'H':0,
@@ -62,6 +68,7 @@ class Player:
             if suits[i] >= 5:
                 self.points['f'] = True
 
+    # checks for straight
     def getStraight(self):
         lowestVal = 14
         if len(self.rankHand) >= 5:
@@ -81,7 +88,7 @@ class Player:
             if corrCount == 5:
                 self.points['s'] = True
 
-
+    # checks for 3 of a kind
     def getThreeKind(self):
         for i in range(len(self.hand)):
             self.cardVals[self.hand[i][0]] = 0
@@ -91,6 +98,7 @@ class Player:
             if self.cardVals[i] >= 3:
                 self.points['three'] = True
 
+    # checks for pair or 2pair
     def getPairs(self):
         if len(self.hand) >= 2:
             for i in range(len(self.hand)):
@@ -103,11 +111,12 @@ class Player:
             if len(self.pairs) >= 2:
                 self.points['twop'] = True
 
+    # gets the high card
     def getHighCards(self):
         self.rankHand.sort(reverse=True)
         self.points['highcard'] = self.rankHand
 
-
+    # gets all of the ranks for the face cards
     def getRankHand(self):
         for i in range(len(self.hand)):
             if self.hand[i][0] == 'A':
@@ -121,6 +130,7 @@ class Player:
             else:
                 self.rankHand.append((int(self.hand[i][0]), self.hand[i][1]))
 
+    # checks for each hand
     def getPoints(self):
         self.getHighCards()
         self.getPairs()
@@ -132,6 +142,7 @@ class Player:
         self.getStraightFlush()
         self.getRSF()
 
+    # sets the high score of the hand
     def getHighScore(self):
         self.highScore = self.points['highcard']
         self.topScore = 1

@@ -4,11 +4,16 @@ import errno
 import sys
 import time
 
+# VARIABLES
 HEADER_LENGTH = 10
-IP = '192.168.7.240'
+IP = ''
 PORT = 44421
 
+ipCorrect = False
 loggedIn = False
+
+bal = 0
+bank = 0
 
 waiting = False
 
@@ -18,13 +23,15 @@ currentPlayers = ''
 currentHand = ''
 currentMax = 0
 
-
+# FUNCTIONS
+# parses command and splits it based on | and ,
 def command_parse(msg):
     msg = msg.split("|")
     for i in range(len(msg)):
         msg[i] = msg[i].split(",")
     return msg
 
+# splits up the cards sent or the players sent
 def multiSplit(string, mode):
     outputStr = ''
     if mode == 't' or mode == 'h':
@@ -45,15 +52,25 @@ def multiSplit(string, mode):
 
 
 
-
+# while the client isnt logged in
 while loggedIn is False:
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect((IP, PORT))
+    # gets the ip address
+    while ipCorrect is False:
+        try:
+            IP = input('Input server IP address here: ')
+            client_socket.connect((IP, PORT))
+            ipCorrect = True
+        except:
+            print('IP incorrect, try again')
+
 
     client_socket.setblocking(False)
+    # input username and password
     my_username = input('Username: ')
     my_password = input('Password: ')
 
+    # sends the login
     login = f"un,{my_username}|pw,{my_password}".encode()
     loginHeader = f"{len(login):<{HEADER_LENGTH}}".encode()
     client_socket.send(loginHeader+login)
@@ -68,9 +85,14 @@ while loggedIn is False:
                 sys.exit()
             lnmessage_length = int(lnmessage_header.decode().strip())
             lnmessage = client_socket.recv(lnmessage_length).decode()
-            if lnmessage == 'sl':
+            lnmessage = command_parse(lnmessage)
+            # if the received message is sl, it gets the bal, bank, and sets logged in to true
+            if lnmessage[0][0] == 'sl':
                 loggedIn = True
+                bal = int(lnmessage[0][1])
+                bank = int(lnmessage[0][2])
                 break
+            # otherwise, makes you try again
             elif lnmessage == 'wl':
                 continue
 
@@ -88,14 +110,16 @@ while loggedIn is False:
         sys.exit()
 
 
-
+# main loop
 while True:
-
+    # if you arent waiting, allows you to send commands
     if waiting is False:
+        print('\033c', end="")
+        print(f'To join game, type "jn". Current balance: {bal}')
         omessage = input(f'{my_username} >  ')
     else:
         omessage = 'no'
-
+    # if you arent waiting and you sent a command, sends command to server
     if omessage != 'no':
         omessage = omessage.encode()
         omessage_header = f"{len(omessage):<{HEADER_LENGTH}}".encode()
@@ -104,6 +128,7 @@ while True:
     else:
         pass
 
+    # tries to receive a message from the server
     try:
         while True:
             time.sleep(0.25)
@@ -114,7 +139,7 @@ while True:
             message_length = int(message_header.decode().strip())
             message = client_socket.recv(message_length).decode()
             message = command_parse(message)
-
+            # checks message if it is wt, if it is, sets wait to true and prints out optional message
             if message[0][0] == 'wt':
                 if message[0][1] == my_username:
 
@@ -126,7 +151,9 @@ while True:
                         print(f'{message[0][2]}')
                     except:
                         pass
+            # if message is yt
             elif message[0][0] == 'yt':
+                # gets all values from command
                 print("\033c", end="")
                 cmdBack = ''
                 currentMax = int(message[0][1])
@@ -135,6 +162,7 @@ while True:
                 currentPlayers = multiSplit(message[0][4], 'p')
                 sent = False
                 while not sent:
+                    # prints out interface
                     print(f'Players: {currentPlayers}')
                     print(f'Table: {currentTable}')
                     print(f'{currentHand}')
@@ -143,6 +171,7 @@ while True:
                     print('[c] Call')
                     print('[f] Fold')
                     choice = input(' > ')
+                    # sends back respective choice of r for raise, c for call, and f for fold
                     if choice == 'r':
                         try:
                             raiseAmt = int(input(f'Raise to how much (min {currentMax+1})? '))
@@ -173,16 +202,19 @@ while True:
                         client_socket.send(cmdBack)
                         sent = True
                     else:
+                        # otherwise, clear screen and redo interface
                         print("\033c", end="")
                         print('Input valid option')
                         print(' ')
 
+            # if command is wn, print the win screen
             elif message[0][0] == 'wn':
                 print("\033c", end="")
                 print('-'*30)
                 print('Game results:')
                 print(f'You won {message[0][1]}')
                 print(f'Your new balance is {message[0][2]}')
+                bal = int(message[0][2])
                 print('-'*30)
                 time.sleep(3)
                 waiting = False
