@@ -55,18 +55,28 @@ def init_players():
             bets[player] = 0
 
 def score_all_players():
-    commLen = len(currentTable)
-    while commLen < 5:
-        currentTable.append(deck.pop())
-    for p in players:
-        temphand = players[p].hand
-        for i in len(currentTable):
-            temphand.append(currentTable[i])
-        players[p].hand = temphand
+    while len(currentTable) < 5:
+        currentTable.append(deck.pop(0))
+    for p in stillIn:
+        if stillIn[p] == True:
+            temphand = players[p].hand
+            for i in range(len(currentTable)):
+                temphand.append(currentTable[i])
+            players[p].hand = temphand
 
-        players[p].getRankHand()
-        players[p].getPoints()
-        players[p].getHighScore()
+            players[p].getRankHand()
+            players[p].getPoints()
+            players[p].getHighScore()
+
+def cleanUpMain():
+    global players, stillIn, bets, order, currentTable, currentHigh, deck
+    players = {}
+    stillIn = {}
+    bets = {}
+    order = []
+    currentHigh = 0
+    currentTable = []
+    deck = []
 
 
 # MAIN CODE

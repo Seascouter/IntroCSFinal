@@ -17,9 +17,9 @@ def get_users():
 def set_users():
     with open('accounts/accounts.csv', 'w') as f:
         for user in users:
-            print(len(users[user]))
+            #print(len(users[user]))
             line = f"{user},{users[user][2]},{users[user][0]},{users[user][1]}\n"
-            print(line)
+            #print(line)
             f.write(line)
 
 def adjust_amounts(user, new_wallet, new_bank):

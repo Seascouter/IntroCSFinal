@@ -122,8 +122,10 @@ while True:
                         waiting = False
                     else:
                         waiting = True
-
-                    print(f'{message[0][2]}')
+                    try:
+                        print(f'{message[0][2]}')
+                    except:
+                        pass
             elif message[0][0] == 'yt':
                 print("\033c", end="")
                 cmdBack = ''

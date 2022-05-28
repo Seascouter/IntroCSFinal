@@ -58,7 +58,12 @@ def getPlayerStatus():
             outputStr += f'{clients[p]["data"].decode()}~o;'
     return outputStr[:-1]
 
-
+def cleanUp():
+    global gameNow, cpi, gameRound
+    gameNow = False
+    cpi = 0
+    gameRound = 0
+    main.cleanUpMain()
 
 
 
@@ -169,17 +174,41 @@ while True:
                         wait_list.append(notified)
                         print(len(wait_list), 'game')
                 elif cmd[0][0] == 'rs':
-                    if int(cmd[0][1]) <= accounts.users[clients[notified]['data'].decode()][0]:
-                        main.bets[notified] = int(cmd[0][1])
-                        print('rs')
+                    if gameNow:
+                        if int(cmd[0][1]) <= accounts.users[clients[notified]['data'].decode()][0]:
+                            main.bets[notified] = int(cmd[0][1])
+                            print('rs')
+                        else:
+                            main.bets[notified] = accounts.users[clients[notified]['data'].decode()][0]
                     else:
-                        main.bets[notified] = accounts.users[clients[notified]['data'].decode()][0]
+                        lsmsg = f'wt,{clients[notified]["data"].decode()},You lost!'.encode()
+                        lsmsg = {'header': f"{len(lsmsg):<{HEADER_LENGTH}}".encode(), 'data': lsmsg}
+                        lsmsg = lsmsg['header'] + lsmsg['data']
+                        notified.send(lsmsg)
+                        time.sleep(0.25)
+                        notified.send(lsmsg)
                 elif cmd[0][0] == 'cl':
-                    main.bets[notified] = main.currentHigh
-                    print('cl')
+                    if gameNow:
+                        main.bets[notified] = main.currentHigh
+                        print('cl')
+                    else:
+                        lsmsg = f'wt,{clients[notified]["data"].decode()},You lost!'.encode()
+                        lsmsg = {'header': f"{len(lsmsg):<{HEADER_LENGTH}}".encode(), 'data': lsmsg}
+                        lsmsg = lsmsg['header'] + lsmsg['data']
+                        notified.send(lsmsg)
+                        time.sleep(0.25)
+                        notified.send(lsmsg)
                 elif cmd[0][0] == 'fd':
-                    main.stillIn[notified] = False
-                    print('fd')
+                    if gameNow:
+                        main.stillIn[notified] = False
+                        print('fd')
+                    else:
+                        lsmsg = f'wt,{clients[notified]["data"].decode()},You lost!'.encode()
+                        lsmsg = {'header': f"{len(lsmsg):<{HEADER_LENGTH}}".encode(), 'data': lsmsg}
+                        lsmsg = lsmsg['header'] + lsmsg['data']
+                        notified.send(lsmsg)
+                        time.sleep(0.25)
+                        notified.send(lsmsg)
                 else:
                     print(f"{user['data'].decode()} > {message['data']}")
 
@@ -194,14 +223,13 @@ while True:
         main.currentHigh = prev
 
         if not gameNow:
+            print(len(main.players))
             if len(main.players) >= 3:
                 gameNow = True
                 main.create_deck(main.deck)
                 main.init_players()
                 main.deal_hands()
-                print('just dealt hands feeling good')
-                for xyz in main.players:
-                    print(main.players[xyz].hand)
+                print('dealt hands')
                 if main.stillIn[main.order[cpi]] is True:
                     yourturn = f'yt,{main.currentHigh},{adjust(main.currentTable)},{adjust(main.players[main.order[cpi]].hand)},{getPlayerStatus()}'.encode()
                     yourturn = {'header': f"{len(yourturn):<{HEADER_LENGTH}}".encode(), 'data': yourturn}
@@ -211,12 +239,10 @@ while True:
 
         else:
             amtIn = main.get_amt_in()
-            if amtIn == 1:
+            if amtIn == 1 and gameRound >= 3:
                 for p in main.stillIn:
                     if main.stillIn[p] == True:
                         totalB = main.get_total_bets()
-                        print(clients[p]['data'])
-                        print(accounts.users)
                         accounts.users[clients[p]['data'].decode()][0] += totalB
                         winmsg = f'wn,{totalB},{accounts.users[clients[p]["data"].decode()][0]}'.encode()
                         winmsg = {'header': f"{len(winmsg):<{HEADER_LENGTH}}".encode(), 'data': winmsg}
@@ -225,14 +251,56 @@ while True:
                         su = accounts.set_users()
                         if su == False:
                             print("Error setting users!")
-            elif amtIn == 2:
+                cleanUp()
+                continue
+            elif (amtIn == 2 and gameRound >=3) or gameRound >= 11:
                 main.score_all_players()
+                topScore = 0
                 for p in main.players:
-                    print(main.players[p].highScore)
+                    if main.players[p].topScore > topScore:
+                        topScore = main.players[p].topScore
+                winners = 0
+                for p in main.players:
+                    if main.players[p].topScore == topScore:
+                        winners += 1
+                if winners == 1:
+                    for p in main.players:
+                        if main.players[p].topScore == topScore:
+                            totalB = main.get_total_bets()
+                            accounts.users[clients[p]['data'].decode()][0] += totalB
+                            winmsg = f'wn,{totalB},{accounts.users[clients[p]["data"].decode()][0]}'.encode()
+                            winmsg = {'header': f"{len(winmsg):<{HEADER_LENGTH}}".encode(), 'data': winmsg}
+                            winmsg = winmsg['header'] + winmsg['data']
+                            p.send(winmsg)
+                            su = accounts.set_users()
+                            if su == False:
+                                print("Error setting users!")
+                else:
+                    playerWinners = []
+                    for p in main.players:
+                        if main.players[p].topScore == topScore:
+                            playerWinners.append(p)
+                    totalB = main.get_total_bets()
+                    for pw in playerWinners:
+                        accounts.users[clients[pw]['data'].decode()][0] += round(totalB/3,0)
+                        winmsg = f'wn,{totalB},{accounts.users[clients[pw]["data"].decode()][0]}'.encode()
+                        winmsg = {'header': f"{len(winmsg):<{HEADER_LENGTH}}".encode(), 'data': winmsg}
+                        winmsg = winmsg['header'] + winmsg['data']
+                        pw.send(winmsg)
+                        su = accounts.set_users()
+                        if su == False:
+                            print("Error setting users!")
+                    for pl in main.players:
+                        if pl not in playerWinners:
+                            lsmsg = f'wt,{clients[pl]["data"].decode()},You lost!'.encode()
+                            lsmsg = {'header': f"{len(lsmsg):<{HEADER_LENGTH}}".encode(), 'data': lsmsg}
+                            lsmsg = lsmsg['header'] + lsmsg['data']
+                            pl.send(lsmsg)
+
             gameRound += 1
-            print(gameRound)
             if cpi >= len(main.order):
                 cpi = 0
+                print('reset cpi')
 
             if gameRound == 3:
                 main.deal_table(3)
@@ -240,12 +308,12 @@ while True:
                 main.deal_table(1)
             elif gameRound == 9:
                 main.deal_table(1)
-            if main.stillIn[main.order[cpi]] is True:
-                print(main.players[main.order[cpi]].hand)
-                yourturn = f'yt,{main.currentHigh},{adjust(main.currentTable)},{adjust(main.players[main.order[cpi]].hand)},{getPlayerStatus()}'.encode()
-                yourturn = {'header': f"{len(yourturn):<{HEADER_LENGTH}}".encode(), 'data': yourturn}
-                yourturn = yourturn['header'] + yourturn['data']
-                main.order[cpi].send(yourturn)
+            while main.stillIn[main.order[cpi]] is False:
+                cpi += 1
+            yourturn = f'yt,{main.currentHigh},{adjust(main.currentTable)},{adjust(main.players[main.order[cpi]].hand)},{getPlayerStatus()}'.encode()
+            yourturn = {'header': f"{len(yourturn):<{HEADER_LENGTH}}".encode(), 'data': yourturn}
+            yourturn = yourturn['header'] + yourturn['data']
+            main.order[cpi].send(yourturn)
             cpi += 1
 
 

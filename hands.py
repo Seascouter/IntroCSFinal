@@ -18,6 +18,7 @@ class Player:
     }
     cardVals = {}
     highScore = ''
+    topScore = 0
 
     def getRSF(self):
         hasAce = False
@@ -133,24 +134,34 @@ class Player:
 
     def getHighScore(self):
         self.highScore = self.points['highcard']
+        self.topScore = 1
         if self.points['pair']:
             self.highScore = 'pair'
+            self.topScore = 2
         if self.points['twop']:
             self.highScore = 'twop'
+            self.topScore = 3
         if self.points['three']:
             self.highScore = 'three'
+            self.topScore = 4
         if self.points['s']:
             self.highScore = 's'
+            self.topScore = 5
         if self.points['f']:
             self.highScore = 'f'
+            self.topScore = 6
         if self.points['fh']:
             self.highScore = 'fh'
+            self.topScore = 7
         if self.points['four']:
             self.highScore = 'four'
+            self.topScore = 8
         if self.points['sf']:
             self.highScore = 'sf'
+            self.topScore = 9
         if self.points['rsf']:
             self.highScore = 'rsf'
+            self.topScore = 10
 
 # ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
 # suits = ['S','C','H','D']
