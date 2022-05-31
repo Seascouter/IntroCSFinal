@@ -4,6 +4,7 @@ import select
 import accounts.accounts as accounts
 import main
 import time
+import os
 
 
 # VARIABLES
@@ -100,7 +101,9 @@ sockets_list = [server_socket]
 clients = {}
 
 try:
-    print(f"Server IP Address: {print(socket.gethostbyname(socket.gethostname()))}")
+    print('Server IP: ', end="")
+    os.system('ipconfig getifaddr en0')
+    print(' ')
 except:
     pass
 
