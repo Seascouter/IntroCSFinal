@@ -56,6 +56,8 @@ def multiSplit(string, mode):
 while loggedIn is False:
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # gets the ip address
+    if ipCorrect is True:
+        client_socket.connect((IP, PORT))
     while ipCorrect is False:
         try:
             IP = input('Input server IP address here: ')
